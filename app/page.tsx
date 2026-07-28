@@ -1,65 +1,97 @@
-import Image from "next/image";
+"use client";
+import { useState, useEffect } from "react";
+import { Brain, Send, Save, Loader2 } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+// Supabase को कनेक्ट करना
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function Home() {
+  const [note, setNote] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
+
+  // नोट को डेटाबेस में सेव करने का फंक्शन
+  const saveNote = async () => {
+    if (!note) return alert("कुछ तो लिखो!");
+    setLoading(true);
+    const { error } = await supabase.from("notes").insert([{ content: note }]);
+    setLoading(false);
+    if (error) alert("Error saving note");
+    else {
+      alert("Note saved successfully!");
+      setNote("");
+    }
+  };
+
+  // AI से पूछने का फंक्शन
+  const askAI = async () => {
+    if (!note) return alert("AI से पूछने के लिए कुछ लिखें!");
+    setLoading(true);
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      body: JSON.stringify({ message: note }),
+    });
+    const data = await res.json();
+    setAiResponse(data.text);
+    setLoading(false);
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-slate-50 p-6 font-sans">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="bg-blue-600 p-2 rounded-lg">
+            <Brain className="text-white" size={32} />
+          </div>
+          <h1 className="text-3xl font-extrabold text-slate-800">My AI Second Brain</h1>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Left Side: Note Input */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <h2 className="text-lg font-semibold mb-4 text-slate-700">Write Something...</h2>
+            <textarea
+              className="w-full h-64 p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none text-slate-600"
+              placeholder="आज आपने क्या सीखा? यहाँ लिखें..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="flex gap-3 mt-4">
+              <button 
+                onClick={saveNote}
+                disabled={loading}
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
+                Save to Brain
+              </button>
+              <button 
+                onClick={askAI}
+                disabled={loading}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
+              >
+                {loading ? <Loader2 className="animate-spin" /> : <Send size={20} />}
+                Ask AI
+              </button>
+            </div>
+          </div>
+
+          {/* Right Side: AI Response */}
+          <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 min-h-[300px]">
+            <h2 className="text-lg font-semibold mb-4 text-blue-800 flex items-center gap-2">
+              <Brain size={20} /> AI Insights
+            </h2>
+            <div className="text-slate-700 leading-relaxed italic">
+              {aiResponse || "आपका AI यहाँ जवाब देगा। पहले कुछ लिखकर 'Ask AI' पर क्लिक करें!"}
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
